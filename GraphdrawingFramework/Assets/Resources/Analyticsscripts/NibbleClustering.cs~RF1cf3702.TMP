@@ -1,0 +1,284 @@
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using globals;
+using UnityEngine;
+
+/**
+ * Modified Nibble
+ *  https://www.cse.iitb.ac.in/~sudarsha/Pubs-dir/comad09-clustering.pdf 
+ *  Ziyao He try to implement that
+ */
+public class NibbleClustering : AnalyticsScript
+{
+    public override Hashtable Nodes { get; set; }
+    public override Hashtable Links { get; set; }
+    public override bool HasGuiButton { get; set; } = true;
+    public override Hashtable Results { get; set; } 
+    public override bool HasResultButton { get; set; } = true;
+    
+    //p1
+    DictionaryEntry randNodeEntry;
+    Node randNode;//get random Node as a start node
+    int totalSteps;
+    double a = 2;
+    double d = 7;
+    double r = 1.5;
+    double f = 500;
+    double maxActiveNodeBound;
+    int maxClusterSize=8;//p5 User can define the value this time we set up as 3
+    int batch = 10;//Batch i
+    List<Node> ActiveNodes= new List<Node>();
+    List<Node> allNodes = new List<Node>();
+    List<Link> linkList = new List<Link>();
+    List<Node> bestCluster = new List<Node>();
+    double spreadProbability = 0.5;
+    void initialization(Hashtable Nodes,Hashtable Links)
+    {
+       
+        totalSteps = 0;//set total steps to 0
+        int size = Nodes.Count;
+        
+        int item = new System.Random().Next(size);
+        int i = 0;
+        //find a random start node
+        foreach (DictionaryEntry node in Nodes)
+        {
+            if (i == item)
+            {
+                randNodeEntry = node;
+                randNode = (Node)node.Value;
+                randNode.p = 1;
+                /*Debug.Log(node.Key); check
+                Debug.Log(randNode.Id);*/
+                
+                ActiveNodes.Add(randNode);
+            }
+            i++;
+            allNodes.Add((Node)node.Value);
+        }
+        foreach (DictionaryEntry link in Links) {
+            linkList.Add((Link)link.Value);
+        }
+        maxActiveNodeBound = f * maxClusterSize;
+        
+        //Debug.Log("hellow");
+    }
+
+
+    public override void Execute()
+    {
+        Nodes = (Hashtable)GlobalVariables.Graphnodes[1];
+        Links = (Hashtable)GlobalVariables.Graphlinks[1];
+
+
+        List<Node> bestCluster = modifiedNibble(Nodes,Links);
+
+        Results = new Hashtable();
+        Results.Clear();
+        
+        foreach (Node node in bestCluster) {
+            Results.Add(node.Id,node.p);
+        }
+
+    }
+    public List<Node> modifiedNibble(Hashtable Nodes,Hashtable Links) {
+        int batchSteps;
+        int ti;
+
+        initialization(Nodes, Links);
+        List<List<Node>> C_best_Candidates = new List<List<Node>>();
+        for (int i = 1; i <= batch; i++)
+        {
+            Debug.Log("was there(for batch)");
+            //Batch i initialization
+            ti = (int)System.Math.Floor(a * System.Math.Pow(r, batch) + a + batch * d);
+            if (ti > maxClusterSize)
+            {
+                batchSteps = (int)maxClusterSize - totalSteps;
+            }
+            else
+            {
+                batchSteps = ti - totalSteps;
+            }
+            //Do for batchstep number of times:
+            for (int j = 0; j < batchSteps; j++)
+            {
+                ActiveNodes = spreading(ActiveNodes);
+
+            }
+            /*foreach (Node node in ActiveNodes)
+            {
+                Debug.Log("ActiveNode " + i + " " + node.Id.ToString());
+            }*/
+            //(3) Obtain Cluster Ci= Modified FindBestCLuster
+            //Debug.Log("hellow");
+            List<Node> Ci = MoifiedFindBestCluster(ActiveNodes, maxClusterSize);
+            C_best_Candidates.Add(Ci);
+            Debug.Log("was there Ci");
+            //(4)
+            if (i >= 1)
+            {
+                List<Node> Ci_1 = C_best_Candidates[i - 1];
+                double ci_conductance = CalculateConductance(Ci);
+                double ci_1_conductance = CalculateConductance(Ci_1);
+                if (ci_1_conductance <= ci_conductance)
+                {
+                    bestCluster = Ci;
+                    Debug.Log("Found");
+                    //to Step(6)
+                    break;
+                }
+            }
+            //(5)
+            if (ti >= maxClusterSize)
+            {
+                Debug.Log("exceeded");
+                break;
+            }
+            else
+            {
+                totalSteps = (int)Math.Floor((double)ti);
+            }
+
+        }
+        //(6) add Abandoned Nodes
+        List<Node> abandoned = new List<Node>();
+        List<Node> S_hat = allNodes.Where(p => bestCluster.All(p2 => p2.Id != p.Id)).ToList<Node>();
+        foreach (Node node in S_hat)
+        {
+            bool needAdd = true;
+            foreach (Node neighbour in node.Neighbours)
+            {
+                if (!bestCluster.Contains(neighbour))
+                {
+                    needAdd = false;
+                    break;
+
+                }
+            }
+            if (needAdd)
+            {
+                abandoned.Add(node);
+            }
+        }
+        foreach (Node node in abandoned)
+        {
+            bestCluster.Add(node);
+        }
+        if (bestCluster.Count == 0)
+        {
+            Debug.Log("FALSCH");
+        }
+        //Results.Add(bestCluster);
+        foreach (Node node in bestCluster)
+        {
+
+            Debug.Log(node.Id);
+        }
+        return bestCluster;
+    }
+    public List<Node> MoifiedFindBestCluster(List<Node> activeNodes, int maxClusterSize)
+    {
+        List<Node> Ci = new List<Node>();
+        //Normalization
+        foreach (Node activeNode in activeNodes) {
+            activeNode.p = activeNode.p / activeNode.Neighbours.Count;
+        }
+        //Sort the ActiveNodes 
+        List<Node> SortedActiveNodes = activeNodes.OrderByDescending(o => o.p).ToList();
+        int j = Math.Min(maxClusterSize,Math.Abs(activeNodes.Count));
+        //define Candidates
+        List<List<Node>> Candidates = new List<List<Node>>();
+        for (int i = 1; i <= j; i++) {
+            
+            List<Node> Cj = new List<Node>();
+            for (int k = 0; k < i;k++) {
+                Node curNode = SortedActiveNodes[k];
+                Cj.Add(curNode);
+            }
+            Candidates.Add(Cj);
+            
+        }
+        double minConductance =100;
+        int CandidateIndex = 0;
+        int indexcounter = 0;
+        foreach (List<Node> Cj in Candidates) {
+            double curConductance = CalculateConductance(Cj);
+            if (minConductance>curConductance) {
+
+                minConductance = curConductance;
+                CandidateIndex = indexcounter;
+            }
+            indexcounter++;
+        }
+        Ci = Candidates[CandidateIndex];
+        return Ci;
+    }
+    public double CalculateConductance(List<Node> cluster) {
+        List<Node> S_hat = allNodes.Where(p => cluster.All(p2 => p2.Id != p.Id)).ToList<Node>();
+        int vol_s_hat = 0;
+        foreach (Node node in S_hat)
+        {
+
+            vol_s_hat += node.Degree;
+        }
+        int vol_s = 0;
+        foreach (Node node in cluster)
+        {
+            vol_s += node.Degree;
+        }
+        int deltaS = 0;
+        foreach (Link link in linkList)
+        {
+            if (cluster.Contains(link.SourceNode) && S_hat.Contains(link.TargetNode) || cluster.Contains(link.TargetNode) && S_hat.Contains(link.SourceNode))
+            {
+                deltaS++;
+
+            }
+        }
+        double Conductance = deltaS / Math.Min(vol_s, vol_s_hat);
+
+        return Conductance;
+    }
+    /**
+     * Step 2 a-e
+     */
+    public List<Node> spreading(List<Node> ActiveNodes) {
+        bool p7NeedChange = false;
+        // Here we do probability spreading
+        foreach (Node node in ActiveNodes.ToList<Node>())
+        {
+            List<Node> Neighbours = node.Neighbours;
+            int count = Neighbours.Count;
+            double spreadp = node.p * spreadProbability / (count);
+            //new possibility of current node
+            node.p -= count * spreadp;
+            foreach (Node neighbour in Neighbours)
+            {
+                if (!p7NeedChange)
+                {
+                    //spread
+                    neighbour.p += spreadp;
+                    if (!ActiveNodes.Contains(neighbour)) {
+                        //Update activeNodes
+                        ActiveNodes.Add(neighbour);
+                    }
+                   
+                }
+                else
+                {
+                    return ActiveNodes;
+                }
+
+            }
+        }
+        if (maxActiveNodeBound <= ActiveNodes.Count)
+        {
+            p7NeedChange = true;
+        }
+        return ActiveNodes;
+    }
+     
+}

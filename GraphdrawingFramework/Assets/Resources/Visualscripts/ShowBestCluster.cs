@@ -1,0 +1,77 @@
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using globals;
+using UnityEngine;
+
+
+public class ShowBestCluster : VisualScript
+{
+    public override bool HasGuiButton { get; set; } = true;
+    public override Hashtable Nodes { get; set; }
+    public override Hashtable Links { get; set; } = (Hashtable)GlobalVariables.Graphlinks[1];
+    public override Hashtable RenderedNodes { get; set; }
+   
+    public override Hashtable RenderedLinks { get; set; } = GlobalVariables.GetRenderedGraphLinks(1);
+    //List<Color> colors=new List<Color>();
+    public override void Execute()
+    {
+        
+
+        Nodes = (Hashtable)GlobalVariables.Graphnodes[1];
+        Links = (Hashtable)GlobalVariables.Graphlinks[1];
+        //Debug.Log(Links.Count);
+        //Initialization
+        /*foreach (DictionaryEntry NodeEntry in Nodes) {
+            Node node =(Node) NodeEntry.Value;
+            ((Vertice)RenderedNodes[node.Id]).Color = Color.white;
+        }
+        foreach (DictionaryEntry linkEntry in Links)
+        {
+
+            Link link = (Link)linkEntry.Value;
+            ((Edge)RenderedLinks[link.Id]).Color = Color.gray;
+        }*/
+
+
+        NibbleClustering NC = new NibbleClustering();
+        Hashtable NodesCopy = (Hashtable)Nodes.Clone();
+        Hashtable LinksCopy = (Hashtable)Links.Clone();
+        List<List<Node>> bestClusters = NC.getClustering(NodesCopy,LinksCopy);
+        Debug.Log("There are in total "+bestClusters.Count+ " clusters.");
+        //visualization
+        int colorIndex = 0;
+        foreach (List<Node> bestCluster in bestClusters) {
+            //random bright color
+            Color color = new Color(
+                colorIndex * 2.7f / (bestCluster.Count + 1)+0.3f,
+                UnityEngine.Random.Range(0.3f, 3f),
+                UnityEngine.Random.Range(0.3f, 3f)
+            );
+            colorIndex++;
+            if (bestCluster.Count <= 2) {
+                
+                Debug.Log("There are Clusters with 2 or less nodes, We won't color them");
+                Debug.Log("The Nodes are:");
+                foreach (Node node in bestCluster) {
+                    Debug.Log(node.Id);
+                }
+            }
+            foreach (DictionaryEntry linkEntry in Links)
+            {
+                Link link = (Link)linkEntry.Value;
+                if (link != null) {
+                    if (bestCluster.Contains(link.SourceNode) && bestCluster.Contains(link.TargetNode))
+                    {
+                        ((Vertice)RenderedNodes[link.SourceNode.Id]).Color = color;
+                        ((Vertice)RenderedNodes[link.TargetNode.Id]).Color = color;
+                        ((Edge)RenderedLinks[link.Id]).Color = color;
+                    }
+                }
+                
+            }
+        }
+       
+
+    }
+}

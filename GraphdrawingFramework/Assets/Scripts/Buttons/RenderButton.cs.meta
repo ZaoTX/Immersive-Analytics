@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 063c72aacaf654043964a8d8be73f903
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - sphereButton: {instanceID: 0}
+  - cubeButton: {instanceID: 0}
+  - buttonPanel: {instanceID: 0}
+  - nodeobjButton: {fileID: 8870465588331622742, guid: 8a7188c360052664cbfdc577130b49b7,
+      type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

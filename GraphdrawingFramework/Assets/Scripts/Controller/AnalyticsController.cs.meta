@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 16b7d0995ad109c429c02d47d5d8149b
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - panelVisButtons: {instanceID: 0}
+  - visScriptButton: {fileID: 3469424700674726204, guid: 47b8c8b2c52fe2045b1e26fcbfbcb527,
+      type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
